@@ -3,10 +3,6 @@
 import mysql.connector
 import re
 import time
-import sys
-
-reload(sys)
-sys.setdefaultencoding('utf8')
 
 
 class CommonDB:
@@ -70,7 +66,7 @@ class CommonDB:
                 else:
                     self.cursor.execute(self.sql)
             except mysql.connector.Error as e:
-                print('sql process error!||errmsg:%s||sql:%s' % (format(e), self.sql))
+                print('sql process error!||errmsg:%s||sql:%s, data: %s' % (format(e), self.sql, data))
 
     def insertOne(self, params):
         """

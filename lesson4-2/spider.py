@@ -7,10 +7,16 @@
 import os
 import time
 import datetime
+import chardet
+import base64
 import urllib2
 import urlparse
 from bs4 import BeautifulSoup  # 用于解析网页中文, 安装： pip install beautifulsoup4
 from paperDao import PaperDao
+import sys
+
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 
 def download(url, retry=2):
@@ -23,7 +29,8 @@ def download(url, retry=2):
     print "downloading: ", url
     # 设置header信息，模拟浏览器请求
     header = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36',
+        "Accept-Language": "zh-CN,zh;q=0.8,en;q=0.6,it;q=0.4,ja;q=0.2,zh-TW;q=0.2",
     }
     try:  # 爬取可能会失败，采用try-except方式来捕获处理
         request = urllib2.Request(url, headers=header)  # 设置请求数据
@@ -94,12 +101,15 @@ def crawl_paper_tag(list, url_root):
             if 'ic-list-money' in tagClass:
                 metaReward = meta.text.strip()
 
+        paperUrl = urlparse.urljoin(url_root, paperUrl)
+        paperContent = crawl_paper(paperUrl)
+
         paperAttr = {
             'author': author,
             'title': title,
-            'url': urlparse.urljoin(url_root, paperUrl),
+            'url': paperUrl,
             'abstract': abstract,
-            'content': '',
+            'content': paperContent,
             'pic': pic,
             'read_cnt': metaRead,
             'comment_cnt': metaComment,
@@ -147,6 +157,21 @@ def crawled_links(url_seed, url_root):
     return crawled_url
 
 
+def crawl_paper(paper_url):
+    '''
+    爬取单篇文章内容
+    :param paper_url:
+    :return:
+    '''
+    html = download(paper_url)
+    detect = chardet.detect(html)
+    soup = BeautifulSoup(html, "html.parser")
+    content = soup.find('div', {'class': 'show-content'}).text.strip()  # 获取文章内容
+    if detect['encoding'] != 'utf-8':
+        content = base64.b64encode(content)  # python2对中文识别有问题，当错误识别编码时，转bse64存储
+    return content
+
+
 def crawled_page(crawled_url):
     """
     爬取文章内容
@@ -183,9 +208,6 @@ url_seed = 'http://www.jianshu.com/c/9b4685b6357c?page=%d'  # 要爬取的页面
 paperList = crawl_list('http://www.jianshu.com/c/9b4685b6357c?page=1')
 paperAll = crawl_paper_tag(paperList, url_root)
 save_data(paperAll)
-exit(-1)
-# print paperAll
-# exit(-1)
 
-crawled_url = crawled_links(url_seed, url_root)
-crawled_page(crawled_url)
+# crawled_url = crawled_links(url_seed, url_root)
+# crawled_page(crawled_url)
